@@ -1,1 +1,5 @@
+#database credential details
 db_creds.yaml
+
+#virtual environment and dependencies
+venv/
