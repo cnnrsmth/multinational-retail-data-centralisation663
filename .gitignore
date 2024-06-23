@@ -3,3 +3,6 @@ db_creds.yaml
 
 #virtual environment and dependencies
 venv/
+
+#exploration notebook
+explore.ipynb
