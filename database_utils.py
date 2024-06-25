@@ -1,5 +1,6 @@
 import yaml
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import create_engine, inspect
+import pandas as pd
 
 class DatabaseConnector:
     def __init__(self, config_path='db_creds.yaml'):
@@ -57,9 +58,14 @@ class DatabaseConnector:
             print(f"Error listing tables: {e}")
             return None
 
-# Usage example
-if __name__ == "__main__":
-    db_connector = DatabaseConnector()
-    print(db_connector)
-    engine = db_connector.engine
-    print(engine)
+    def upload_to_db(self, df, table_name):
+        """Upload a DataFrame to the specified table in the database."""
+        if not self.engine:
+            print("Database engine is not initialized.")
+            return
+        
+        try:
+            df.to_sql(table_name, self.engine, if_exists='replace', index=False)
+            print(f"Data uploaded to table {table_name} successfully.")
+        except Exception as e:
+            print(f"Error uploading data to table {table_name}: {e}")

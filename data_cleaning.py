@@ -15,8 +15,18 @@ class DataCleaning:
         df = self.clean_address(df)
         df = self.clean_country_columns(df)
         df = self.clean_phone_number(df)
-        df = self.clean_dates(df)
+        df = self.clean_dates(df, date_columns=['date_of_birth', 'join_date'])
         df = self.remove_invalid_rows(df)
+        return df
+
+    def clean_card_details(self, df):
+        """
+        Clean card data by standardizing null values, removing rows with invalid data.
+        """  
+        df = self.standardize_nulls(df)
+        df = self.clean_dates(df, date_columns=['date_payment_confirmed'])
+        df = self.remove_invalid_rows(df)
+        df = self.clean_card_details(df)
         return df
 
     def standardize_nulls(self, df):
@@ -51,11 +61,10 @@ class DataCleaning:
         df['phone_number'] = df['phone_number'].apply(lambda x: re.sub(r'\D', '', str(x)))
         return df
 
-    def clean_dates(self, df):
+    def clean_dates(self, df, date_columns):
         """
         Clean date columns by converting to datetime and handling non-standard formats.
         """
-        date_columns = ['date_of_birth', 'join_date']
 
         for col in date_columns:
             df[col] = df[col].apply(lambda x: self.parse_non_standard_dates(x) if pd.isna(pd.to_datetime(x, errors='coerce')) else pd.to_datetime(x, errors='coerce'))
@@ -64,20 +73,36 @@ class DataCleaning:
 
     def parse_non_standard_dates(self, date_str):
         try:
-            if re.match(r'\b\w+ \d{4} \d{2}\b', date_str): 
-                return pd.to_datetime(date_str, format='%B %Y %d', errors='coerce')
-            elif re.match(r'\b\d{4}/\d{2}/\d{2}\b', date_str):  
-                return pd.to_datetime(date_str, format='%Y/%m/%d', errors='coerce')
-            elif re.match(r'\b\d{4} \w+ \d{2}\b', date_str):  
-                return pd.to_datetime(date_str, format='%Y %B %d', errors='coerce')
-            elif re.match(r'\b\w+ \d{4} \d{2}\b', date_str): 
-                return pd.to_datetime(date_str, format='%B %Y %d', errors='coerce')
-            elif re.match(r'\b\w+ \d{4} \d{2}\b', date_str):  
-                return pd.to_datetime(date_str, format='%B %Y %d', errors='coerce')
+            if re.match(r'^\d{4}-\d{2}-\d{2}$', date_str):
+                return pd.to_datetime(date_str, format='%Y-%m-%d')
+            elif re.match(r'^\d{4}/\d{2}/\d{2}$', date_str):
+                return pd.to_datetime(date_str, format='%Y/%m/%d')
+            elif re.match(r'^\d{2}/\d{2}/\d{4}$', date_str):
+                return pd.to_datetime(date_str, format='%d/%m/%Y')
+            elif re.match(r'^\d{2}/\d{2}$', date_str):
+                return pd.to_datetime(date_str, format='%m/%y')
+            elif re.match(r'^\w+ \d{4} \d{2}$', date_str):
+                return pd.to_datetime(date_str, format='%B %Y %d')
+            elif re.match(r'^\d{4} \w+ \d{2}$', date_str):
+                return pd.to_datetime(date_str, format='%Y %B %d')
+            elif re.match(r'^\d{4}/\d{2}/\d{2}$', date_str):
+                return pd.to_datetime(date_str, format='%Y/%m/%d')
+            elif re.match(r'^\w+ \d{4} \d{2}$', date_str):
+                return pd.to_datetime(date_str, format='%B %Y %d')
+            elif re.match(r'^\w+ \d{4} \d{2}$', date_str):
+                return pd.to_datetime(date_str, format='%B %Y %d')
             else:
                 return pd.to_datetime(date_str, errors='coerce')  
         except Exception:
             return np.nan
+        
+    
+    def clean_card_number(self, df):
+        """
+        Clean the card_number column by removing invalid characters.
+        """
+        df['card_number'] = df['card_number'].apply(lambda x: re.sub(r'\?', '', str(x)) if isinstance(x, str) else x)
+        return df
 
     def remove_invalid_rows(self, df):
         """

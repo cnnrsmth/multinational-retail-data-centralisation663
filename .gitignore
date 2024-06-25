@@ -1,8 +1,11 @@
-#database credential details
-db_creds.yaml
+#database credential details (pull)
+aws_db_creds.yaml
 
 #virtual environment and dependencies
 venv/
 
 #exploration notebook
 explore.ipynb
+
+#database credential details (push)
+local_db_creds.yaml
