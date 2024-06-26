@@ -42,6 +42,13 @@ class DataCleaning:
         df = self.clean_store_code(df)
         df = self.clean_staff_numbers(df)
         return df
+    
+    def clean_product_data(self, df):
+        """
+        Clean product data by processing the weight column and converting all weights to kg.
+        """
+        df = self.clean_weight_column(df)
+        return df
         
 
     def standardize_nulls(self, df):
@@ -191,4 +198,62 @@ class DataCleaning:
         Clean the staff_numbers column by converting all values to numeric, coercing errors to NaN.
         """
         df['staff_numbers'] = pd.to_numeric(df['staff_numbers'], errors='coerce')
+        return df
+    
+    def clean_weight_column(self, df):
+        """
+        Clean and convert the weight column to kilograms.
+        """
+        def extract_number_unit(s):
+            if pd.isna(s):
+                return [None, None]
+            parts = re.split(r'(\d+\.?\d*)', s.replace(' ', ''))
+            if len(parts) < 3:
+                return [None, None]
+            number = parts[1]
+            unit = ''.join(parts[2:]).lower().strip()
+            return [number, unit]
+
+        def normalize_units(unit):
+            if unit is None:
+                return None
+            unit = unit.lower().strip()
+            if 'kg' in unit or 'kilogram' in unit:
+                return 'kg'
+            elif 'g' in unit or 'gram' in unit:
+                return 'g'
+            elif 'ml' in unit or 'milliliter' in unit or 'millilitre' in unit:
+                return 'g'
+            elif 'liter' in unit or 'liters' in unit or 'litre' in unit or 'litres' in unit:
+                return 'liters'
+            else:
+                return None
+
+        def convert_to_kilograms(row):
+            try:
+                number = float(row['number'])
+                unit = row['unit']
+                if unit == 'g':
+                    return number / 1000  # Convert grams to kilograms
+                elif unit == 'kg':
+                    return number  # Already in kilograms
+                elif unit == 'liters':
+                    return number  # Assuming 1 liter = 1 kg
+                else:
+                    return None
+            except (TypeError, ValueError):
+                return None
+
+        # Apply the extraction function to create separate number and unit columns
+        df[['number', 'unit']] = df['weight'].apply(extract_number_unit).apply(pd.Series)
+
+        # Normalize the units
+        df['unit'] = df['unit'].apply(normalize_units)
+
+        # Convert to kilograms
+        df['weight_kg'] = df.apply(convert_to_kilograms, axis=1)
+
+        # Drop the original weight, number, and unit columns
+        df.drop(['weight', 'number', 'unit'], axis=1, inplace=True)
+
         return df

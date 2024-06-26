@@ -3,6 +3,8 @@ from sqlalchemy import text
 import pandas as pd
 import tabula
 import requests
+import boto3
+from io import StringIO
 
 class DataExtractor:
     def __init__(self, db_connector=None):
@@ -94,6 +96,23 @@ class DataExtractor:
                 print(f"Error retrieving data for store number {store_number}: {e}")
         
         return pd.DataFrame(stores_data)
+
+    def extract_from_s3(self, s3_uri):
+        """Extract data from S3 and return as a pandas DataFrame."""
+        # Parse the S3 URI
+        bucket_name = s3_uri.split('/')[2]
+        s3_file_key = '/'.join(s3_uri.split('/')[3:])
+
+        # Initialize a boto3 client
+        s3_client = boto3.client('s3')
+
+        # Get the object from S3
+        response = s3_client.get_object(Bucket=bucket_name, Key=s3_file_key)
+        csv_string = response['Body'].read().decode('utf-8')
+
+        # Convert the CSV data into a DataFrame
+        df = pd.read_csv(StringIO(csv_string))
+        return df
 
 
 if __name__ == "__main__":
