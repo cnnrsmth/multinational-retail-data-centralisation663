@@ -29,6 +29,21 @@ class DataCleaning:
         df = self.clean_card_details(df)
         return df
 
+    def clean_store_details(self, df):
+        """
+        Clean store details through various operations
+        """  
+        df = self.standardize_nulls(df)
+        df = self.clean_address(df)
+        df = self.merge_latitude_columns(df)
+        df = self.clean_dates(df, date_columns=['opening_date'])
+        df = self.clean_categorical_columns(df)
+        df = self.clean_locality(df)
+        df = self.clean_store_code(df)
+        df = self.clean_staff_numbers(df)
+        return df
+        
+
     def standardize_nulls(self, df):
         """
         Standardize different representations of null values to np.nan.
@@ -119,4 +134,61 @@ class DataCleaning:
         # Remove rows with invalid data
         df = df[~invalid_rows]
 
+        return df
+    
+    def merge_latitude_columns(self, df):
+        """
+        Merge 'lat' and 'latitude' columns into a single column.
+        Prioritize 'latitude' values over 'lat' if both are present.
+        """
+        # If 'latitude' is missing, fill it with 'lat' values
+        df['latitude'] = df['latitude'].combine_first(df['lat'])
+        # Drop the 'lat' column
+        df.drop(columns=['lat'], inplace=True)
+        return df
+    
+    def convert_data_types(self, df):
+        """
+        Convert data types of appropriate columns.
+        """
+        df['longitude'] = pd.to_numeric(df['longitude'], errors='coerce')
+        df['latitude'] = pd.to_numeric(df['latitude'], errors='coerce')
+        df['staff_numbers'] = pd.to_numeric(df['staff_numbers'], errors='coerce')
+        return df
+    
+    def clean_categorical_columns(self, df):
+        """
+        Clean categorical columns: store_type, country_code, and continent.
+        """
+        # Clean store_type
+        df['store_type'] = df['store_type'].apply(lambda x: x if not any(char.isdigit() for char in str(x)) else np.nan)
+
+        # Clean country_code
+        df['country_code'] = df['country_code'].apply(lambda x: x if (not any(char.isdigit() for char in str(x)) and len(str(x)) <= 3) else np.nan)
+
+        # Clean continent
+        df['continent'] = df['continent'].apply(lambda x: x.replace('ee', '') if isinstance(x, str) else x)
+        df['continent'] = df['continent'].apply(lambda x: x if not any(char.isdigit() for char in str(x)) else np.nan)
+
+        return df
+    
+    def clean_locality(self, df):
+        """
+        Clean the locality column by ensuring it does not contain any numbers.
+        """
+        df['locality'] = df['locality'].apply(lambda x: x if (isinstance(x, str) and not any(char.isdigit() for char in x)) else np.nan)
+        return df
+
+    def clean_store_code(self, df):
+        """
+        Clean the store_code column by ensuring it contains a '-' separator.
+        """
+        df['store_code'] = df['store_code'].apply(lambda x: x if (isinstance(x, str) and '-' in x) else np.nan)
+        return df
+    
+    def clean_staff_numbers(self, df):
+        """
+        Clean the staff_numbers column by converting all values to numeric, coercing errors to NaN.
+        """
+        df['staff_numbers'] = pd.to_numeric(df['staff_numbers'], errors='coerce')
         return df

@@ -2,6 +2,7 @@ from database_utils import DatabaseConnector
 from sqlalchemy import text
 import pandas as pd
 import tabula
+import requests
 
 class DataExtractor:
     def __init__(self, db_connector=None):
@@ -60,25 +61,55 @@ class DataExtractor:
             print(f"Error retrieving data from PDF: {e}")
             return None
 
+    def list_number_of_stores(self, stores_endpoint, headers):
+        """
+        Retrieve the number of stores from the API.
+        """
+        try:
+            response = requests.get(stores_endpoint, headers=headers)
+            if response.status_code == 200:
+                data = response.json()
+                return data['number_stores']
+            else:
+                print(f"Failed to retrieve number of stores. Status code: {response.status_code}")
+                return None
+        except Exception as e:
+            print(f"Error retrieving number of stores: {e}")
+            return None
+
+    def retrieve_stores_data(self, store_endpoint, headers, number_of_stores):
+        """
+        Retrieve the details of all stores from the API and return as a pandas DataFrame.
+        """
+        stores_data = []
+        for store_number in range(1, number_of_stores):
+            try:
+                response = requests.get(f"{store_endpoint}/{store_number}", headers=headers)
+                if response.status_code == 200:
+                    store_data = response.json()
+                    stores_data.append(store_data)
+                else:
+                    print(f"Failed to retrieve data for store number {store_number}. Status code: {response.status_code}")
+            except Exception as e:
+                print(f"Error retrieving data for store number {store_number}: {e}")
+        
+        return pd.DataFrame(stores_data)
+
 
 if __name__ == "__main__":
-    db_connector = DatabaseConnector()
-    data_extractor = DataExtractor(db_connector)
+    # API details
+    stores_endpoint = "https://aqj7u5id95.execute-api.eu-west-1.amazonaws.com/prod/number_stores"
+    store_details_endpoint = "https://aqj7u5id95.execute-api.eu-west-1.amazonaws.com/prod/store_details"
+    headers = {"x-api-key": "yFBQbwXe9J3sd6zWVAMrK6lcxxr0q1lr2PT6DDMX"}
 
-    # List tables
-    tables = data_extractor.list_tables()
-    print(tables)
+    # Create an instance of DataExtractor
+    data_extractor = DataExtractor()
 
-    # Read data from a specific table (replace 'your_table' with an actual table name)
-    if tables:
-        table_name = tables[0]  # Example: read data from the first table  
-        # Read table into a pandas DataFrame
-        df = data_extractor.read_rds_table(table_name)
-        if df is not None:
-            print(df.head())  # Display the first few rows of the DataFrame
+    # List number of stores
+    number_of_stores = data_extractor.list_number_of_stores(stores_endpoint, headers)
+    print(f"Number of stores: {number_of_stores}")
 
-    # Retrieve PDF data
-    pdf_link = "https://data-handling-public.s3.eu-west-1.amazonaws.com/card_details.pdf"
-    pdf_data_df = data_extractor.retrieve_pdf_data(pdf_link)
-    if pdf_data_df is not None:
-        print(pdf_data_df.head())  # Display the first few rows of the extracted PDF data
+    if number_of_stores:
+        # Retrieve stores data
+        stores_df = data_extractor.retrieve_stores_data(store_details_endpoint, headers, number_of_stores)
+        print(stores_df.head())  # Display the first few rows of the stores DataFrame
