@@ -47,7 +47,12 @@ class DataCleaning:
         """
         Clean product data by processing the weight column and converting all weights to kg.
         """
+        df = self.standardize_nulls(df)
+        df = self.remove_invalid_rows(df)
         df = self.clean_weight_column(df)
+        df['product_price'] = df['product_price'].str.replace('£', '')
+        df = self.convert_data_types(df, ['product_price'])
+        df.rename(columns={'product_price': 'product_price_gbp'}, inplace=True)
         return df
         
 
@@ -154,13 +159,19 @@ class DataCleaning:
         df.drop(columns=['lat'], inplace=True)
         return df
     
-    def convert_data_types(self, df):
+    def convert_data_types(self, df, columns):
         """
-        Convert data types of appropriate columns.
+        Convert data types of specified columns to numeric.
+        
+        Parameters:
+        df (pd.DataFrame): The DataFrame containing the columns to convert.
+        columns (list): A list of column names to convert to numeric types.
+        
+        Returns:
+        pd.DataFrame: The DataFrame with converted columns.
         """
-        df['longitude'] = pd.to_numeric(df['longitude'], errors='coerce')
-        df['latitude'] = pd.to_numeric(df['latitude'], errors='coerce')
-        df['staff_numbers'] = pd.to_numeric(df['staff_numbers'], errors='coerce')
+        for column in columns:
+            df[column] = pd.to_numeric(df[column], errors='coerce')
         return df
     
     def clean_categorical_columns(self, df):
