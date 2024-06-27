@@ -53,8 +53,19 @@ class DataCleaning:
         df['product_price'] = df['product_price'].str.replace('£', '')
         df = self.convert_data_types(df, ['product_price'])
         df.rename(columns={'product_price': 'product_price_gbp'}, inplace=True)
+        df = self.clean_dates(df, date_columns=['date_added'])
         return df
         
+    def clean_orders_data(self, df):
+        """
+        Clean product data by processing the weight column and converting all weights to kg.
+        """
+        df = self.standardize_nulls(df)
+        df = self.remove_invalid_rows(df)
+        columns_to_drop = ['first_name', 'last_name', '1']
+        df = self.drop_columns(df, columns_to_drop)
+        df = self.convert_data_types(df, ['product_quantity'])
+        return df
 
     def standardize_nulls(self, df):
         """
@@ -267,4 +278,11 @@ class DataCleaning:
         # Drop the original weight, number, and unit columns
         df.drop(['weight', 'number', 'unit'], axis=1, inplace=True)
 
+        return df
+
+    def drop_columns(self, df, columns_to_drop):
+        """
+        Drop specified columns from the DataFrame.
+        """
+        df = df.drop(columns=columns_to_drop, errors='ignore')
         return df
