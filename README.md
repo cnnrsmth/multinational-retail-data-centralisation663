@@ -5,11 +5,11 @@
 ## Table of Contents
 
 - [Introduction](#introduction)
+- [What It Does](#what-it-does)
+- [Aim of the Project](#aim-of-the-project)
+- [What I Learned](#what-i-learned)
 - [Features](#features)
-- [Installation](#installation)
-- [Usage](#usage)
 - [Project Structure](#project-structure)
-- [License](#license)
 
 ## Introduction
 
@@ -25,7 +25,7 @@ The project extracts sales data from various sources, cleans and transforms it, 
 - **Ensure Data Quality:** Clean and transform the data to ensure its accuracy and consistency.
 - **Enable Data-Driven Decisions:** Provide a reliable source of sales data for analysis and decision-making.
 
-### What You Learned
+### What I Learned
 
 - Data extraction from various sources.
 - Data cleaning and transformation techniques.
