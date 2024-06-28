@@ -113,6 +113,18 @@ class DataExtractor:
         # Convert the CSV data into a DataFrame
         df = pd.read_csv(StringIO(csv_string))
         return df
+    
+    def extract_json_from_url(self, url):
+        """Extract JSON data from a URL and return it as a pandas DataFrame."""
+        try:
+            response = requests.get(url)
+            response.raise_for_status()  # Raise an HTTPError for bad responses
+            json_data = response.json()
+            df = pd.json_normalize(json_data)
+            return df
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching data from URL: {e}")
+            return None
 
 
 if __name__ == "__main__":

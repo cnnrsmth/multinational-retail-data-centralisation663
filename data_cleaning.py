@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 import re
+import json
+import requests
 
 class DataCleaning:
     def __init__(self):
@@ -66,6 +68,32 @@ class DataCleaning:
         df = self.drop_columns(df, columns_to_drop)
         df = self.convert_data_types(df, ['product_quantity'])
         return df
+
+
+    def clean_date_events_data(self, json_data):
+        """Clean the date events data by following the structured steps."""
+        df = self.reformat_json_to_df(json_data)
+        print("Data after reformatting to DataFrame:")
+        print(df.head())
+
+        df = self.remove_null_rows(df)
+        print("Data after removing null rows:")
+        print(df.head())
+
+        df = self.remove_invalid_rows_date_events_data(df)
+        print("Data after removing invalid rows:")
+        print(df.head())
+
+        try:
+            df = self.combine_datetime_columns(df)
+            print("Data after combining datetime columns:")
+            print(df.head())
+        except Exception as e:
+            print(f"Error during combining datetime columns: {e}")
+            return None
+
+        return df
+        
 
     def standardize_nulls(self, df):
         """
@@ -157,6 +185,17 @@ class DataCleaning:
         # Remove rows with invalid data
         df = df[~invalid_rows]
 
+        return df
+    
+    def remove_invalid_rows_date_events_data(self, df):
+        """Remove rows with invalid data patterns."""
+        def is_invalid_pattern(val):
+            if isinstance(val, str) and len(val) == 10 and val.isalnum() and not val.isdigit() and not val.isalpha():
+                return True
+            return False
+
+        invalid_rows = df.apply(lambda row: any(is_invalid_pattern(val) for val in row), axis=1)
+        df = df[~invalid_rows]
         return df
     
     def merge_latitude_columns(self, df):
@@ -285,4 +324,41 @@ class DataCleaning:
         Drop specified columns from the DataFrame.
         """
         df = df.drop(columns=columns_to_drop, errors='ignore')
+        return df
+
+
+    def fetch_and_save_json(self, url, filename):
+        """Fetch the JSON data from the given URL and save it to a file."""
+        response = requests.get(url)
+        raw_json_data = response.json()
+        with open(filename, 'w') as f:
+            json.dump(raw_json_data, f, indent=4)
+        return raw_json_data
+
+    def reformat_json_to_df(self, json_data):
+        """Reformat the JSON data to a structured DataFrame."""
+        records = []
+        for key in json_data['timestamp'].keys():
+            record = {
+                'timestamp': json_data['timestamp'][key],
+                'month': json_data['month'][key],
+                'year': json_data['year'][key],
+                'day': json_data['day'][key],
+                'time_period': json_data['time_period'][key],
+                'date_uuid': json_data['date_uuid'][key]
+            }
+            records.append(record)
+        df = pd.DataFrame(records)
+        return df
+
+    def remove_null_rows(self, df):
+        """Remove rows with null values in crucial columns."""
+        df.replace('NULL', pd.NA, inplace=True)
+        df.dropna(subset=['timestamp', 'day', 'month', 'year'], inplace=True)
+        return df
+    
+    def combine_datetime_columns(self, df):
+        """Combine 'timestamp', 'day', 'month', and 'year' into a single datetime column."""
+        df['datetime'] = pd.to_datetime(df['year'].astype(str) + '-' + df['month'].astype(str) + '-' + df['day'].astype(str) + ' ' + df['timestamp'])
+        df.drop(['timestamp', 'day', 'month', 'year'], axis=1, inplace=True)
         return df
