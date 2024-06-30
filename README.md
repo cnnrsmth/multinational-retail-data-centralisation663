@@ -58,4 +58,6 @@ sales-data-centralization/
 ├── README.md                     # Project documentation
 ├── local_db_creds.yaml           # Local database credentials (not included in the repository)
 ├── aws_db_creds.yaml             # AWS RDS credentials (not included in the repository)
+├── analytics_code.sql            # Contains code conducting analysis on sales data (completed in pgadmin4)
+├── database_schema_code.sql      # Contains code creating primary / foreign keys for star schema (completed in pgadmin4)
 ```
