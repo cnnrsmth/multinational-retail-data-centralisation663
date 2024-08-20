@@ -1,26 +1,19 @@
 import pandas as pd
 import numpy as np
 import re
+import json
+import requests
 from typing import List, Dict, Any
 
 class DataCleaning:
-    def clean_data(self, df: pd.DataFrame, data_type: str) -> pd.DataFrame:
-        if data_type == 'user':
-            return self.clean_user_data(df)
-        elif data_type == 'card':
-            return self.clean_card_details(df)
-        elif data_type == 'store':
-            return self.clean_store_details(df)
-        elif data_type == 'product':
-            return self.clean_product_data(df)
-        elif data_type == 'order':
-            return self.clean_orders_data(df)
-        elif data_type == 'date_event':
-            return self.clean_date_events_data(df)
-        else:
-            raise ValueError(f"Unknown data type: {data_type}")
+    def __init__(self):
+        pass
 
     def clean_user_data(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Clean user data by standardizing null values, cleaning addresses, countries, country codes,
+        phone numbers, handling dates, and removing rows with invalid data.
+        """
         df = self.standardize_nulls(df)
         df = self.clean_address(df)
         df = self.clean_country_columns(df)
@@ -30,13 +23,19 @@ class DataCleaning:
         return df
 
     def clean_card_details(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Clean card data by standardizing null values, removing rows with invalid data.
+        """
         df = self.standardize_nulls(df)
         df = self.clean_dates(df, date_columns=['date_payment_confirmed'])
-        df = self.clean_card_number(df)
         df = self.remove_invalid_rows(df)
+        df = self.clean_card_number(df)
         return df
 
     def clean_store_details(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Clean store details through various operations
+        """
         df = self.standardize_nulls(df)
         df = self.clean_address(df)
         df = self.merge_latitude_columns(df)
@@ -48,7 +47,11 @@ class DataCleaning:
         return df
     
     def clean_product_data(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Clean product data by processing the weight column and converting all weights to kg.
+        """
         df = self.standardize_nulls(df)
+        df = self.remove_invalid_rows(df)
         df = self.clean_weight_column(df)
         df['product_price'] = df['product_price'].str.replace('£', '')
         df = self.convert_data_types(df, ['product_price'])
@@ -57,6 +60,9 @@ class DataCleaning:
         return df
         
     def clean_orders_data(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Clean product data by processing the weight column and converting all weights to kg.
+        """
         df = self.standardize_nulls(df)
         df = self.remove_invalid_rows(df)
         columns_to_drop = ['first_name', 'last_name', '1']
@@ -64,9 +70,9 @@ class DataCleaning:
         df = self.convert_data_types(df, ['product_quantity'])
         return df
 
-    def clean_date_events_data(self, df: pd.DataFrame) -> pd.DataFrame:
+    def clean_date_events_data(self, json_data: Dict[str, Any]) -> pd.DataFrame:
         """Clean the date events data by following the structured steps."""
-        df = self.reformat_json_to_df(df)
+        df = self.reformat_json_to_df(json_data)
         print("Data after reformatting to DataFrame:")
         print(df.head())
 
@@ -89,31 +95,41 @@ class DataCleaning:
         return df
 
     def standardize_nulls(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Standardize different representations of null values to np.nan."""
+        """
+        Standardize different representations of null values to np.nan.
+        """
         null_representations = ['NULL', 'None', 'N/A', '']
         df.replace(null_representations, np.nan, inplace=True)
         df = df.where(pd.notnull(df), np.nan)
         return df
 
     def clean_address(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Clean the address column by removing newline characters."""
+        """
+        Clean the address column by removing newline characters.
+        """
         df['address'] = df['address'].str.replace('\n', ',')
         return df
 
     def clean_country_columns(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Clean country and country_code columns by removing invalid entries."""
+        """
+        Clean country and country_code columns by removing invalid entries.
+        """
         df['country'] = df['country'].apply(lambda x: x if not any(char.isdigit() for char in str(x)) else np.nan)
         df['country_code'] = df['country_code'].apply(lambda x: x if (not any(char.isdigit() for char in str(x)) and len(str(x)) <= 3) else np.nan)
         df['country_code'] = df['country_code'].replace('GGB', 'GB')
         return df
 
     def clean_phone_number(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Clean the phone_number column by removing invalid characters and standardizing format."""
+        """
+        Clean the phone_number column by removing invalid characters and standardizing format.
+        """
         df['phone_number'] = df['phone_number'].apply(lambda x: re.sub(r'\D', '', str(x)))
         return df
 
     def clean_dates(self, df: pd.DataFrame, date_columns: List[str]) -> pd.DataFrame:
-        """Clean date columns by converting to datetime and handling non-standard formats."""
+        """
+        Clean date columns by converting to datetime and handling non-standard formats.
+        """
         for col in date_columns:
             df[col] = df[col].apply(lambda x: self.parse_non_standard_dates(x) if pd.isna(pd.to_datetime(x, errors='coerce')) else pd.to_datetime(x, errors='coerce'))
         return df
@@ -138,19 +154,27 @@ class DataCleaning:
             return np.nan
 
     def clean_card_number(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Clean the card_number column by removing invalid characters."""
+        """
+        Clean the card_number column by removing invalid characters.
+        """
         df['card_number'] = df['card_number'].apply(lambda x: re.sub(r'\?', '', str(x)) if isinstance(x, str) else x)
         return df
 
     def remove_invalid_rows(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Remove rows with invalid data patterns."""
+        """
+        Remove rows with invalid data patterns.
+        """
         def is_invalid_pattern(val):
             if isinstance(val, str) and len(val) == 10 and val.isalnum() and not val.isdigit() and not val.isalpha():
                 return True
             return False
 
+        # Check each row for invalid patterns
         invalid_rows = df.apply(lambda row: any(is_invalid_pattern(val) for val in row), axis=1)
+
+        # Remove rows with invalid data
         df = df[~invalid_rows]
+
         return df
 
     def remove_invalid_rows_date_events_data(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -165,42 +189,72 @@ class DataCleaning:
         return df
 
     def merge_latitude_columns(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Merge 'lat' and 'latitude' columns into a single column."""
+        """
+        Merge 'lat' and 'latitude' columns into a single column.
+        Prioritize 'latitude' values over 'lat' if both are present.
+        """
+        # If 'latitude' is missing, fill it with 'lat' values
         df['latitude'] = df['latitude'].combine_first(df['lat'])
+        # Drop the 'lat' column
         df.drop(columns=['lat'], inplace=True)
         return df
 
     def convert_data_types(self, df: pd.DataFrame, columns: List[str]) -> pd.DataFrame:
-        """Convert data types of specified columns to numeric."""
+        """
+        Convert data types of specified columns to numeric.
+        
+        Parameters:
+        df (pd.DataFrame): The DataFrame containing the columns to convert.
+        columns (list): A list of column names to convert to numeric types.
+        
+        Returns:
+        pd.DataFrame: The DataFrame with converted columns.
+        """
         for column in columns:
             df[column] = pd.to_numeric(df[column], errors='coerce')
         return df
 
     def clean_categorical_columns(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Clean categorical columns: store_type, country_code, and continent."""
+        """
+        Clean categorical columns: store_type, country_code, and continent.
+        """
+        # Clean store_type
         df['store_type'] = df['store_type'].apply(lambda x: x if not any(char.isdigit() for char in str(x)) else np.nan)
+
+        # Clean country_code
         df['country_code'] = df['country_code'].apply(lambda x: x if (not any(char.isdigit() for char in str(x)) and len(str(x)) <= 3) else np.nan)
+
+        # Clean continent
         df['continent'] = df['continent'].apply(lambda x: x.replace('ee', '') if isinstance(x, str) else x)
         df['continent'] = df['continent'].apply(lambda x: x if not any(char.isdigit() for char in str(x)) else np.nan)
+
         return df
 
     def clean_locality(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Clean the locality column by ensuring it does not contain any numbers."""
+        """
+        Clean the locality column by ensuring it does not contain any numbers.
+        """
         df['locality'] = df['locality'].apply(lambda x: x if (isinstance(x, str) and not any(char.isdigit() for char in x)) else np.nan)
         return df
 
     def clean_store_code(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Clean the store_code column by ensuring it contains a '-' separator."""
+        """
+        Clean the store_code column by ensuring it contains a '-' separator.
+        """
         df['store_code'] = df['store_code'].apply(lambda x: x if (isinstance(x, str) and '-' in x) else np.nan)
         return df
 
     def clean_staff_numbers(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Clean the staff_numbers column by converting all values to numeric, coercing errors to NaN."""
+        """
+        Clean the staff_numbers column by converting all values to numeric, coercing errors to NaN.
+        """
         df['staff_numbers'] = pd.to_numeric(df['staff_numbers'], errors='coerce')
         return df
 
     def clean_weight_column(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Clean and convert the weight column to kilograms."""
+        """
+        Clean and convert the weight column to kilograms.
+        """
         def extract_number_unit(s):
             if pd.isna(s):
                 return [None, None]
@@ -256,7 +310,9 @@ class DataCleaning:
         return df
 
     def drop_columns(self, df: pd.DataFrame, columns_to_drop: List[str]) -> pd.DataFrame:
-        """Drop specified columns from the DataFrame."""
+        """
+        Drop specified columns from the DataFrame.
+        """
         df = df.drop(columns=columns_to_drop, errors='ignore')
         return df
 

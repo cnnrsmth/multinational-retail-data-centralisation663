@@ -10,6 +10,7 @@ class DatabaseConnector:
         self.engine = self._init_db_engine()
 
     def _read_db_creds(self, path: str) -> Optional[Dict[str, str]]:
+        """Read database credentials from a YAML file and return as a dictionary."""
         try:
             with open(path, 'r') as file:
                 creds = yaml.safe_load(file)
@@ -22,6 +23,7 @@ class DatabaseConnector:
             return None
 
     def _init_db_engine(self) -> Optional[create_engine]:
+        """Initialize and return an SQLAlchemy database engine using the credentials."""
         if not self.config:
             print("No configuration available.")
             return None
@@ -42,6 +44,7 @@ class DatabaseConnector:
             return None
 
     def list_db_tables(self) -> Optional[list]:
+        """List all tables in the database."""
         if not self.engine:
             print("Database engine is not initialized.")
             return None
@@ -56,6 +59,7 @@ class DatabaseConnector:
             return None
 
     def upload_to_db(self, df: pd.DataFrame, table_name: str):
+        """Upload a DataFrame to the specified table in the database."""
         if not self.engine:
             print("Database engine is not initialized.")
             return
@@ -65,3 +69,19 @@ class DatabaseConnector:
             print(f"Data uploaded to table {table_name} successfully.")
         except Exception as e:
             print(f"Error uploading data to table {table_name}: {e}")
+
+
+if __name__ == "__main__":
+    # Example usage of DatabaseConnector
+    db_connector = DatabaseConnector(config_path='local_db_creds.yaml')
+
+    # List all tables in the database
+    tables = db_connector.list_db_tables()
+
+    # Example DataFrame to upload
+    data = {'column1': [1, 2, 3], 'column2': ['a', 'b', 'c']}
+    df = pd.DataFrame(data)
+
+    # Upload DataFrame to the database
+    if tables:
+        db_connector.upload_to_db(df, 'example_table')
